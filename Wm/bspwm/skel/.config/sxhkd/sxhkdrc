@@ -1,0 +1,70 @@
+# sxhkd config - minimal dotfile
+
+super + Return
+    kitty
+
+super + d
+    rofi -show drun
+
+super + {j,k}
+    bspc node -f {next,prev}.local
+
+super + {_,shift + }{j,k}
+    bspc node -{f,s} {next,prev}.local
+
+super + {1-9,0}
+    bspc desktop -f '^{1-9,10}'
+
+super + shift + {1-9,0}
+    bspc node -d '^{1-9,10}'
+
+super + {h,l}
+    bspc node -p {west,east}
+
+super + {t,shift + t,s,f}
+    bspc node -t {tiled,pseudo_tiled,floating,fullscreen}
+
+super + {_,shift + }c
+    bspc node -c
+
+super + {_,shift + }q
+    bspc quit
+
+super + r
+    bspc wm -r
+
+super + {Left,Right,Up,Down}
+    bspc node -z {left -20 0,right 20 0,top 0 -20,bottom 0 20}
+
+super + {_,shift + }{Left,Right,Up,Down}
+    bspc node -z {left -10 0,right 10 0,top 0 -10,bottom 0 10}
+
+super + m
+    bspc desktop -l next
+
+super + {comma,period}
+    bspc desktop -f {prev,next}.local
+
+super + bracket{left,right}
+    bspc desktop -f {prev,next}.local
+
+super + shift + bracket{left,right}
+    bspc node -d {prev,next}.local -f
+
+super + Escape
+    pkill -USR1 -x sxhkd
+
+XF86Audio{Raise,Lower}Volume
+    pamixer {-i,-d} 5
+
+XF86AudioMute
+    pamixer -t
+
+XF86MonBrightness{Up,Down}
+    brightnessctl set {+,-}5%
+
+XF86Audio{Play,Stop,Prev,Next}
+    playerctl {play-pause,stop,previous,next}
+
+Print
+    scrot ~/Pictures/screenshots/$(date +%Y%m%d_%H%M%S.png)

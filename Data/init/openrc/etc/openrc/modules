@@ -1,0 +1,6 @@
+# OpenRC modules to load at boot
+modules="
+    elogind
+    dbus
+    alsa
+"

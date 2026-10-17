@@ -1,0 +1,23 @@
+# KDE Plasma Desktop
+plasma-desktop
+plasma-workspace
+kwin
+kwin-wayland
+plasma-nm
+plasma-pa
+plasma-systemmonitor
+plasma-firewall
+plasma-browser-integration
+kde-gtk-config
+kdeplasma-addons
+kgamma
+kmenuedit
+kscreen
+kscreenlocker
+ksshaskpass
+kwallet
+kwalletmanager
+kwrited
+powerdevil
+sddm-kcm
+xdg-desktop-portal-kde

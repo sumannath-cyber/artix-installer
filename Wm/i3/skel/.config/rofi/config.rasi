@@ -1,0 +1,82 @@
+configuration {
+    modi: "drun,run,window";
+    font: "monospace 10";
+    show-icons: true;
+    icon-theme: "Papirus";
+    terminal: "kitty";
+    drun-display-format: "{name}";
+    location: 0;
+    disable-history: false;
+    hide-scrollbar: true;
+    display-drun: "  Apps  ";
+    display-run: "  Run  ";
+    display-window: "  Window  ";
+}
+
+@theme "/dev/null"
+
+* {
+    bg: #2e3440;
+    bg-alt: #3b4252;
+    fg: #d8dee9;
+    fg-alt: #88c0d0;
+
+    background-color: @bg;
+    text-color: @fg;
+}
+
+window {
+    width: 40%;
+    border: 2px;
+    border-color: @fg-alt;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+mainbox {
+    padding: 10px;
+}
+
+inputbar {
+    spacing: 10px;
+    padding: 10px;
+    background-color: @bg-alt;
+    border-radius: 4px;
+}
+
+prompt {
+    font: "monospace 12";
+}
+
+entry {
+    font: "monospace 12";
+    placeholder: "Search...";
+    placeholder-color: @fg-alt;
+}
+
+listview {
+    lines: 10;
+    columns: 1;
+    fixed-height: false;
+    dynamic: true;
+    scrollbar: false;
+}
+
+element {
+    padding: 8px;
+    spacing: 10px;
+    border-radius: 4px;
+}
+
+element selected {
+    background-color: @fg-alt;
+    text-color: @bg;
+}
+
+element-icon {
+    size: 24px;
+}
+
+element-text {
+    vertical-align: 0.5;
+}

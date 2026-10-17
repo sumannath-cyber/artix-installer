@@ -1,0 +1,2 @@
+#!/bin/execlineb -P
+/usr/bin/haveged -w 1024 -F

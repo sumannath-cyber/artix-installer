@@ -1,0 +1,13 @@
+# Artix OpenRC configuration
+
+# Network
+rc_net_eth0="dhcp"
+
+# Clock
+clock="local"
+
+# Keymap
+keymap="us"
+
+# Logging
+rc_logger="YES"
