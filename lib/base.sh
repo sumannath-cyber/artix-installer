@@ -14,27 +14,33 @@ install_base() {
     ucode=$(detect_ucode)
     [[ -n "$ucode" ]] && base_pkgs+=("$ucode")
 
-    local flavor=""
-    case "${ARTIX_FLAVOR:-openrc}" in
-        openrc)     flavor="artix-base-openrc" ;;
-        runit)      flavor="artix-base-runit" ;;
-        dinit)      flavor="artix-base-dinit" ;;
-        s6)         flavor="artix-base-s6" ;;
-        s6-rc)      flavor="artix-base-s6-rc" ;;
-        nosystemd)  flavor="artix-base-nosystemd" ;;
+    local init_sys="${ARTIX_FLAVOR:-openrc}"
+    case "$init_sys" in
+        openrc|nosystemd)
+            base_pkgs+=(openrc elogind-openrc networkmanager-openrc dhcpcd-openrc)
+            ;;
+        runit)
+            base_pkgs+=(runit elogind-runit networkmanager-runit dhcpcd-runit)
+            ;;
+        dinit)
+            base_pkgs+=(dinit elogind-dinit networkmanager-dinit dhcpcd-dinit)
+            ;;
+        s6|s6-rc)
+            base_pkgs+=(s6-base elogind-s6 networkmanager-s6 dhcpcd-s6)
+            ;;
     esac
-
-    base_pkgs+=("$flavor")
 
     # Essential networking
     base_pkgs+=("networkmanager" "dhcpcd" "iwd")
 
-    # Microcode already added via ucode
-
     basestrap /mnt "${base_pkgs[@]}"
+
+    # Copy configured pacman.conf and mirrorlist into target system
+    cp /etc/pacman.conf /mnt/etc/pacman.conf
+    cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
 
     log "Base system installed"
 
     # Generate fstab
-    fstabgen -U /mnt >> /mnt/etc/fstab
+    fstabgen -U /mnt > /mnt/etc/fstab
 }
