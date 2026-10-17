@@ -9,11 +9,11 @@ select_user_packages() {
     log "Loading available packages from pacman..."
 
     # Sync package database first
-    arch-chroot /mnt pacman -Sy --noconfirm 2>/dev/null || true
+    artix-chroot /mnt pacman -Sy --noconfirm 2>/dev/null || true
 
     # Get all available packages
     local all_pkgs
-    all_pkgs=$(arch-chroot /mnt pacman -Ssq 2>/dev/null | sort)
+    all_pkgs=$(artix-chroot /mnt pacman -Ssq 2>/dev/null | sort)
 
     if [[ -z "$all_pkgs" ]]; then
         warn "Could not fetch package list. Skipping."
@@ -24,8 +24,6 @@ select_user_packages() {
     total=$(echo "$all_pkgs" | wc -l)
     log "Found $total packages"
 
-    # Use a searchable menu instead of a massive checklist
-    # Let user search for packages to add
     local search_term
     search_term=$(tui_inputbox "Search Packages" "Enter a search term to filter packages (e.g. 'firefox', 'vim'):")
     
