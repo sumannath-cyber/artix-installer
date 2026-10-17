@@ -8,6 +8,12 @@ _INIT_SH_LOADED=1
 declare -g SELECTED_INIT=""
 
 select_init() {
+    if [[ -n "${ARTIX_FLAVOR:-}" ]]; then
+        SELECTED_INIT="$ARTIX_FLAVOR"
+        log "Using selected init system: $SELECTED_INIT"
+        return 0
+    fi
+
     local inits=($(list_init_systems))
     local items=()
 
@@ -49,21 +55,17 @@ configure_init() {
 configure_openrc() {
     log "Configuring OpenRC"
     local pkgs=(
-        "elogind" "polkit" "dbus" "libelogind"
-        "openssh" "cronie" "cronie-openrc" "haveged" "haveged-openrc"
-        "alsa-utils" "alsa-utils-openrc" "pipewire" "pipewire-pulse"
-        "wireplumber" "pavucontrol"
+        "elogind" "elogind-openrc" "polkit" "dbus" "dbus-openrc"
+        "openssh" "openssh-openrc" "cronie" "cronie-openrc" "haveged" "haveged-openrc"
+        "alsa-utils" "alsa-utils-openrc" "networkmanager-openrc"
+        "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
     )
     pkg_install_chroot "${pkgs[@]}"
 
     # Enable services
-    arch-chroot /mnt rc-update add elogind default
-    arch-chroot /mnt rc-update add dbus default
-    arch-chroot /mnt rc-update add cronie default
-    arch-chroot /mnt rc-update add haveged default
-    arch-chroot /mnt rc-update add sshd default
-    arch-chroot /mnt rc-update add alsa default
-    arch-chroot /mnt rc-update add NetworkManager default
+    for svc in elogind dbus cronie haveged sshd alsa NetworkManager; do
+        artix-chroot /mnt rc-update add "$svc" default 2>/dev/null || true
+    done
 
     # Copy init configs
     if [[ -d "$DATA_DIR/init/openrc/etc" ]]; then
@@ -74,75 +76,67 @@ configure_openrc() {
 configure_runit() {
     log "Configuring runit"
     local pkgs=(
-        "runit" "elogind" "polkit" "dbus"
-        "openssh" "cronie" "cronie-runit" "haveged" "haveged-runit"
-        "alsa-utils" "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
+        "runit" "elogind" "elogind-runit" "polkit" "dbus" "dbus-runit"
+        "openssh" "openssh-runit" "cronie" "cronie-runit" "haveged" "haveged-runit"
+        "alsa-utils" "alsa-utils-runit" "networkmanager-runit"
+        "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
     )
     pkg_install_chroot "${pkgs[@]}"
 
-    # Set up runit services
-    for svc in elogind dbus cronie haveged sshd; do
-        arch-chroot /mnt ln -sf "/etc/runit/sv/$svc" "/etc/runit/runsvdir/default/$svc" 2>/dev/null || true
-    done
-
-    # Ensure pipewire starts per-user via xinitrc/profile later
     if [[ -d "$DATA_DIR/init/runit/etc" ]]; then
         cp -r "$DATA_DIR/init/runit/etc/"* /mnt/etc/ 2>/dev/null || true
+        chmod +x /mnt/etc/runit/sv/*/run 2>/dev/null || true
     fi
+
+    # Set up runit services
+    mkdir -p /mnt/etc/runit/runsvdir/default
+    for svc in elogind dbus cronie haveged sshd NetworkManager; do
+        artix-chroot /mnt ln -sf "/etc/runit/sv/$svc" "/etc/runit/runsvdir/default/$svc" 2>/dev/null || true
+    done
 }
 
 configure_dinit() {
     log "Configuring dinit"
     local pkgs=(
-        "dinit" "elogind" "polkit" "dbus"
-        "openssh" "cronie" "cronie-dinit" "haveged" "haveged-dinit"
-        "alsa-utils" "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
+        "dinit" "elogind" "elogind-dinit" "polkit" "dbus" "dbus-dinit"
+        "openssh" "openssh-dinit" "cronie" "cronie-dinit" "haveged" "haveged-dinit"
+        "alsa-utils" "alsa-utils-dinit" "networkmanager-dinit"
+        "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
     )
     pkg_install_chroot "${pkgs[@]}"
-
-    # Enable dinit services
-    for svc in elogind dbus cronie haveged sshd; do
-        arch-chroot /mnt dinitctl enable "$svc" 2>/dev/null || true
-    done
 
     if [[ -d "$DATA_DIR/init/dinit/etc" ]]; then
         cp -r "$DATA_DIR/init/dinit/etc/"* /mnt/etc/ 2>/dev/null || true
     fi
+
+    # Enable dinit services
+    mkdir -p /mnt/etc/dinit.d/boot.d
+    for svc in elogind dbus cronie haveged sshd NetworkManager; do
+        artix-chroot /mnt ln -sf "/etc/dinit.d/$svc" "/etc/dinit.d/boot.d/$svc" 2>/dev/null || true
+    done
 }
 
 configure_s6() {
     log "Configuring s6"
     local pkgs=(
-        "s6" "s6-linux-init" "s6-rc" "elogind" "polkit" "dbus"
-        "openssh" "cronie" "cronie-s6" "haveged" "haveged-s6"
-        "alsa-utils" "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
+        "s6-base" "elogind" "elogind-s6" "polkit" "dbus" "dbus-s6"
+        "openssh" "openssh-s6" "cronie" "cronie-s6" "haveged" "haveged-s6"
+        "alsa-utils" "alsa-utils-s6" "networkmanager-s6"
+        "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
     )
     pkg_install_chroot "${pkgs[@]}"
-
-    # Create s6-rc bundle
-    arch-chroot /mnt s6-rc-compile /etc/s6-rc/compiled /etc/s6-rc/source 2>/dev/null || true
-    arch-chroot /mnt s6-rc-init /run/s6 2>/dev/null || true
 
     if [[ -d "$DATA_DIR/init/s6/etc" ]]; then
         cp -r "$DATA_DIR/init/s6/etc/"* /mnt/etc/ 2>/dev/null || true
     fi
+
+    for svc in elogind dbus cronie haveged sshd NetworkManager; do
+        artix-chroot /mnt s6-rc-bundle-update -c /etc/s6/rc/compiled add default "$svc" 2>/dev/null || true
+    done
 }
 
 configure_s6rc() {
-    log "Configuring s6-rc"
-    local pkgs=(
-        "s6-rc" "s6-linux-init" "elogind" "polkit" "dbus"
-        "openssh" "cronie" "cronie-s6" "haveged" "haveged-s6"
-        "alsa-utils" "pipewire" "pipewire-pulse" "wireplumber" "pavucontrol"
-    )
-    pkg_install_chroot "${pkgs[@]}"
-
-    arch-chroot /mnt s6-rc-compile /etc/s6-rc/compiled /etc/s6-rc/source 2>/dev/null || true
-    arch-chroot /mnt s6-rc-init /run/s6 2>/dev/null || true
-
-    if [[ -d "$DATA_DIR/init/s6-rc/etc" ]]; then
-        cp -r "$DATA_DIR/init/s6-rc/etc/"* /mnt/etc/ 2>/dev/null || true
-    fi
+    configure_s6
 }
 
 configure_nosystemd() {
