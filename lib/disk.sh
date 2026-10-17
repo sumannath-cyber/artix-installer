@@ -62,7 +62,15 @@ partition_disk() {
 
     log "Partitioning $TARGET_DISK with scheme: $PART_SCHEME"
 
-    wipefs -af "$TARGET_DISK" 2>/dev/null || true
+    if [[ "$PART_SCHEME" != "dualboot" ]]; then
+        swapoff -a 2>/dev/null || true
+        wipefs -af "$TARGET_DISK" 2>/dev/null || true
+    fi
+
+    local part_prefix="$TARGET_DISK"
+    if [[ "$TARGET_DISK" =~ [0-9]$ ]]; then
+        part_prefix="${TARGET_DISK}p"
+    fi
 
     local root_size=""
     if [[ "$SWAP_SIZE" != "none" && -n "$SWAP_SIZE" ]]; then
@@ -76,8 +84,8 @@ label: gpt
 size=550M, type=U, name="EFI System"
 ${root_size} type=L, name="Linux Root"
 EOF
-            EFI_PART="${TARGET_DISK}1"
-            ROOT_PART="${TARGET_DISK}2"
+            EFI_PART="${part_prefix}1"
+            ROOT_PART="${part_prefix}2"
             ;;
         bios)
             sfdisk --wipe always "$TARGET_DISK" <<EOF
@@ -86,8 +94,8 @@ size=1M, type=21686148-6449-6E6F-744E-656564454649, name="BIOS Boot"
 size=550M, type=L, name="EFI System"
 ${root_size} type=L, name="Linux Root"
 EOF
-            EFI_PART="${TARGET_DISK}2"
-            ROOT_PART="${TARGET_DISK}3"
+            EFI_PART="${part_prefix}2"
+            ROOT_PART="${part_prefix}3"
             ;;
         dualboot)
             warn "Dual boot: using cfdisk for manual partitioning"
@@ -97,13 +105,16 @@ EOF
             ;;
     esac
 
-    if [[ "$SWAP_SIZE" != "none" && -n "$SWAP_SIZE" ]]; then
+    if [[ "$SWAP_SIZE" != "none" && -n "$SWAP_SIZE" && "$PART_SCHEME" != "dualboot" ]]; then
         log "Adding swap partition ($SWAP_SIZE)"
         echo 'type=S, name="Linux Swap"' | sfdisk --append "$TARGET_DISK"
+        udevadm settle 2>/dev/null || sleep 1
         SWAP_PART=$(lsblk -lnpo NAME "$TARGET_DISK" | tail -1)
-        mkswap "$SWAP_PART"
+        mkswap -f "$SWAP_PART"
         swapon "$SWAP_PART"
     fi
+
+    udevadm settle 2>/dev/null || sleep 1
 }
 
 format_disk() {
