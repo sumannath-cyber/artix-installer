@@ -63,23 +63,29 @@ partition_disk() {
     log "Partitioning $TARGET_DISK with scheme: $PART_SCHEME"
 
     wipefs -af "$TARGET_DISK" 2>/dev/null || true
-    sgdisk --zap-all "$TARGET_DISK" 2>/dev/null || true
+
+    local root_size=""
+    if [[ "$SWAP_SIZE" != "none" && -n "$SWAP_SIZE" ]]; then
+        root_size="size=-${SWAP_SIZE},"
+    fi
 
     case "$PART_SCHEME" in
         uefi)
-            sgdisk --clear \
-                --new=1:+550M:0 --typecode=1:ef00 --change-name=1:"EFI System" \
-                --new=2:0:0 --typecode=2:8300 --change-name=2:"Linux Root" \
-                "$TARGET_DISK"
+            sfdisk --wipe always "$TARGET_DISK" <<EOF
+label: gpt
+size=550M, type=U, name="EFI System"
+${root_size} type=L, name="Linux Root"
+EOF
             EFI_PART="${TARGET_DISK}1"
             ROOT_PART="${TARGET_DISK}2"
             ;;
         bios)
-            sgdisk --clear \
-                --new=1:+1M:0 --typecode=1:ef02 --change-name=1:"BIOS Boot" \
-                --new=2:+550M:0 --typecode=2:8300 --change-name=2:"EFI System" \
-                --new=3:0:0 --typecode=3:8300 --change-name=3:"Linux Root" \
-                "$TARGET_DISK"
+            sfdisk --wipe always "$TARGET_DISK" <<EOF
+label: gpt
+size=1M, type=21686148-6449-6E6F-744E-656564454649, name="BIOS Boot"
+size=550M, type=L, name="EFI System"
+${root_size} type=L, name="Linux Root"
+EOF
             EFI_PART="${TARGET_DISK}2"
             ROOT_PART="${TARGET_DISK}3"
             ;;
@@ -93,8 +99,8 @@ partition_disk() {
 
     if [[ "$SWAP_SIZE" != "none" && -n "$SWAP_SIZE" ]]; then
         log "Adding swap partition ($SWAP_SIZE)"
-        sgdisk --new=99:0:0 --typecode=99:8200 --change-name=99:"Linux Swap" "$TARGET_DISK"
-        SWAP_PART="${TARGET_DISK}$(lsblk -no NAME "$TARGET_DISK" | tail -1)"
+        echo 'type=S, name="Linux Swap"' | sfdisk --append "$TARGET_DISK"
+        SWAP_PART=$(lsblk -lnpo NAME "$TARGET_DISK" | tail -1)
         mkswap "$SWAP_PART"
         swapon "$SWAP_PART"
     fi
