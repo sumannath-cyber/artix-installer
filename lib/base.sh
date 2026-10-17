@@ -31,10 +31,10 @@ install_base() {
 
     # Microcode already added via ucode
 
-    pacstrap -K /mnt "${base_pkgs[@]}"
+    basestrap /mnt "${base_pkgs[@]}"
 
     log "Base system installed"
 
     # Generate fstab
-    genfstab -U /mnt >> /mnt/etc/fstab
+    fstabgen -U /mnt >> /mnt/etc/fstab
 }
