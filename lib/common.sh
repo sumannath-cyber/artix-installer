@@ -30,7 +30,7 @@ run_cmd() {
 
 run_chroot() {
     log "chroot: $*"
-    arch-chroot /mnt "$@"
+    artix-chroot /mnt "$@"
 }
 
 detect_ucode() {
@@ -98,14 +98,14 @@ pkg_install() {
     local pkgs=("$@")
     [[ ${#pkgs[@]} -eq 0 ]] && return 0
     log "Installing packages: ${pkgs[*]}"
-    pacstrap -K /mnt "${pkgs[@]}"
+    basestrap /mnt "${pkgs[@]}"
 }
 
 pkg_install_chroot() {
     local pkgs=("$@")
     [[ ${#pkgs[@]} -eq 0 ]] && return 0
     log "Installing packages in chroot: ${pkgs[*]}"
-    arch-chroot /mnt pacman -S --noconfirm --needed "${pkgs[@]}"
+    artix-chroot /mnt pacman -S --noconfirm --needed "${pkgs[@]}"
 }
 
 wait_for_key() {
