@@ -8,7 +8,7 @@ _DESKTOP_SH_LOADED=1
 declare -g SELECTED_DESKTOP=""
 
 select_desktop() {
-    local des=($(list_des))
+    local des=($(list_desktops))
     local items=()
 
     for d in "${des[@]}"; do
@@ -54,7 +54,7 @@ install_de() {
     # Common X11/Wayland base
     local common=(
         "xorg-server" "xorg-xinit" "xorg-xrandr" "xorg-xsetroot"
-        "mesa" "lib32-mesa" "xf86-video-vesa" "xf86-video-fbdev"
+        "mesa" "xf86-video-vesa" "xf86-video-fbdev"
         "ttf-dejavu" "ttf-liberation" "noto-fonts"
         "kitty" "dunst" "rofi" "polybar" "picom"
         "thunar" "thunar-archive-plugin" "gvfs" "tumbler"
@@ -68,10 +68,10 @@ install_de() {
         "gnome-keyring" "seahorse"
         "gvfs-mtp" "gvfs-gphoto2"
         "udisks2" "udiskie"
-        "ntfs-3g" "exfat-utils" "dosfstools"
+        "ntfs-3g" "exfatprogs" "dosfstools"
         "bash-completion" "zsh" "zsh-completions"
         "git" "wget" "curl" "unzip" "p7zip"
-        "htop" "btop" "neofetch"
+        "htop" "btop" "fastfetch"
         "firefox" "vim" "nano"
     )
 
@@ -91,12 +91,15 @@ install_de() {
     esac
 
     if [[ -n "$dm" ]]; then
-        arch-chroot /mnt pacman -S --noconfirm --needed "$dm"
+        local dm_init_pkg="${dm}-${SELECTED_INIT}"
+        [[ "$SELECTED_INIT" == "s6-rc" ]] && dm_init_pkg="${dm}-s6"
+        artix-chroot /mnt pacman -S --noconfirm --needed "$dm" "$dm_init_pkg" 2>/dev/null || artix-chroot /mnt pacman -S --noconfirm --needed "$dm"
+
         case "$SELECTED_INIT" in
-            openrc) arch-chroot /mnt rc-update add "$dm" default ;;
-            runit) arch-chroot /mnt ln -sf "/etc/runit/sv/$dm" "/etc/runit/runsvdir/default/$dm" 2>/dev/null || true ;;
-            dinit) arch-chroot /mnt dinitctl enable "$dm" 2>/dev/null || true ;;
-            s6|s6-rc) arch-chroot /mnt s6-rc-bundle-update add "$dm" 2>/dev/null || true ;;
+            openrc) artix-chroot /mnt rc-update add "$dm" default 2>/dev/null || true ;;
+            runit) artix-chroot /mnt ln -sf "/etc/runit/sv/$dm" "/etc/runit/runsvdir/default/$dm" 2>/dev/null || true ;;
+            dinit) artix-chroot /mnt ln -sf "/etc/dinit.d/$dm" "/etc/dinit.d/boot.d/$dm" 2>/dev/null || true ;;
+            s6|s6-rc) artix-chroot /mnt s6-rc-bundle-update -c /etc/s6/rc/compiled add default "$dm" 2>/dev/null || true ;;
         esac
     fi
 }
@@ -112,7 +115,7 @@ install_wm() {
 
     local common=(
         "xorg-server" "xorg-xinit" "xorg-xrandr" "xorg-xsetroot"
-        "mesa" "lib32-mesa"
+        "mesa"
         "ttf-dejavu" "ttf-liberation" "noto-fonts"
         "kitty" "dunst" "rofi" "picom"
         "thunar" "gvfs" "tumbler"
@@ -124,10 +127,10 @@ install_wm() {
         "xdg-user-dirs" "xdg-utils"
         "polkit" "polkit-gnome"
         "udisks2" "udiskie"
-        "ntfs-3g" "exfat-utils" "dosfstools"
+        "ntfs-3g" "exfatprogs" "dosfstools"
         "bash-completion" "zsh" "zsh-completions"
         "git" "wget" "curl" "unzip" "p7zip"
-        "htop" "btop" "neofetch"
+        "htop" "btop" "fastfetch"
         "firefox" "vim" "nano"
     )
 
@@ -153,11 +156,12 @@ configure_de() {
     log "Configuring DE: $name"
 
     if [[ -d "$dir/etc" ]]; then
-        cp -r "$dir/etc/"* /mnt/etc/ 2>/dev/null || true
+        cp -r "$dir/etc/." /mnt/etc/ 2>/dev/null || true
     fi
 
     if [[ -d "$dir/skel" ]]; then
-        cp -r "$dir/skel/"* /mnt/etc/skel/ 2>/dev/null || true
+        mkdir -p /mnt/etc/skel
+        cp -r "$dir/skel/." /mnt/etc/skel/ 2>/dev/null || true
     fi
 }
 
@@ -166,15 +170,22 @@ configure_wm() {
     log "Configuring WM: $name"
 
     if [[ -d "$dir/etc" ]]; then
-        cp -r "$dir/etc/"* /mnt/etc/ 2>/dev/null || true
+        cp -r "$dir/etc/." /mnt/etc/ 2>/dev/null || true
     fi
 
     if [[ -d "$dir/skel" ]]; then
-        cp -r "$dir/skel/"* /mnt/etc/skel/ 2>/dev/null || true
+        mkdir -p /mnt/etc/skel/.config
+        cp -r "$dir/skel/." /mnt/etc/skel/ 2>/dev/null || true
+        chmod +x /mnt/etc/skel/.config/bspwm/bspwmrc 2>/dev/null || true
+        chmod +x /mnt/etc/skel/.config/qtile/autostart.sh 2>/dev/null || true
     fi
 
-    # Copy WM-specific dotfiles to skel
-    if [[ -d "$dir/skel/.config" ]]; then
-        cp -r "$dir/skel/.config/"* /mnt/etc/skel/.config/ 2>/dev/null || true
-    fi
+    # Create .xinitrc in /etc/skel so startx launches the selected WM
+    case "$name" in
+        i3)       echo "exec i3" > /mnt/etc/skel/.xinitrc ;;
+        bspwm)    echo "exec bspwm" > /mnt/etc/skel/.xinitrc ;;
+        awesome)  echo "exec awesome" > /mnt/etc/skel/.xinitrc ;;
+        dwm)      echo "exec dwm" > /mnt/etc/skel/.xinitrc ;;
+        qtile)    echo "exec qtile start" > /mnt/etc/skel/.xinitrc ;;
+    esac
 }
